@@ -1,0 +1,13 @@
+{
+	"n_targets": 118637,
+	"n_bootstraps": 0,
+	"n_processed": 54818147,
+	"n_pseudoaligned": 30560285,
+	"n_unique": 28866384,
+	"p_pseudoaligned": 55.7,
+	"p_unique": 52.7,
+	"kallisto_version": "0.46.2",
+	"index_version": 10,
+	"start_time": "Tue Jul 28 22:02:43 2020",
+	"call": "kallisto quant -i Hvit_masurca_v1.idx -o results/C.3 -t 16 --bias fastq/C7_R1.fastq.gz fastq/C7_R2.fastq.gz"
+}
