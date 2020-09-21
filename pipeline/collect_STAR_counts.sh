@@ -16,5 +16,5 @@ GENOME=genome/Homalodisca_vitripennis.A6A7A9_masurca_v1.masked_RModeler.fasta
 GTF=genome/Homalodisca_vitripennis_A6A7A9_masurca_v1.gtf
 
 if [ ! -s $OUTDIR/STAR_featureCounts.tsv ]; then
-  featureCounts -a $GTF -o $OUTDIR/STAR_featureCounts.tsv -G $GENOME -J -g gene_id -F GTF $(find $OUTDIR -size +0 -name "*.bam")
+  featureCounts -a $GTF -o $OUTDIR/STAR_featureCounts.tsv -G $GENOME -J -g gene_id -F GTF $(find $OUTDIR -size +0 -name "*.Aligned.sortedByCoord.out.bam")
 fi
