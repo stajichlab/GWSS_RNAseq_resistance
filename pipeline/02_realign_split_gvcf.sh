@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH -p intel -N 1 -n 8 --mem 32gb -p short --out logs/realign.%a.log
+#SBATCH -p intel -N 1 -n 8 --mem 32gb --out logs/realign.%a.log
 
 module load picard
 module load samtools
@@ -57,8 +57,8 @@ do
      fi
      picard MarkDuplicates I=$RGBAM O=$DDBAM CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT M=logs/${INNAME}.output.metrics
    fi
-   module load gatk/4.1.4.1
-   time java -Xmx${MEM} -jar $GATK  -T SplitNCigarReads -R $GENOME -I $DDBAM -o $SPLITBAM
+   module load gatk/4.1.8.1
+   time gatk SplitNCigarReads --reference $GENOME --input $DDBAM --output $SPLITBAM
    #-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS
    module unload gatk
    if [ -f $SPLITBAM ]; then
@@ -72,11 +72,14 @@ do
    # make gvcf
  fi
  if [[ ! -f $GVCF || $SPLITBAM -nt $GVCF ]]; then
-   module load gatk/3.8
-   time java -Xmx${MEM} -jar $GATK  -T HaplotypeCaller \
-   	    -ERC GVCF -ploidy 2 \
-   	    -I $SPLITBAM -R $GENOME \
-   	    -o $GVCF -nct $CPU
+   module load gatk/4
+#   time java -Xmx${MEM} -jar $GATK  -T HaplotypeCaller \
+#   	    -ERC GVCF -ploidy 2 \
+#   	    -I $SPLITBAM -R $GENOME \
+#   	    -o $GVCF -nct $CPU
+   time gatk --java-options "-Xmx${MEM}" HaplotypeCaller -ERC GVCF -I  $SPLITBAM -R $GENOME \
+	   -G StandardAnnotation -G AS_StandardAnnotation -G StandardHCAnnotation \
+	   -O $GVCF --native-pair-hmm-threads $CPU
  fi
 done
 date
