@@ -71,6 +71,7 @@ do
    fi
    # make gvcf
  fi
+ echo "$SPLITBAM $GENOME $GVCF"
  if [[ ! -f $GVCF || $SPLITBAM -nt $GVCF ]]; then
    module load gatk/4
 #   time java -Xmx${MEM} -jar $GATK  -T HaplotypeCaller \
