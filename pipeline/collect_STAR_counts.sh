@@ -8,7 +8,7 @@ if [ $SLURM_CPUS_ON_NODE ]; then
     CPU=$SLURM_CPUS_ON_NODE
 fi
 
-OUTDIR=results/STAR
+OUTDIR=reports
 SAMPLEFILE=samples.tsv
 GENOME=$(realpath genome/Homalodisca_vitripennis.A6A7A9_masurca_v1.masked_RModeler.fasta)
 GTF=$(realpath genome/Homalodisca_vitripennis_A6A7A9_masurca_v1.gtf)
