@@ -9,7 +9,6 @@ module load java/13
 module load bcftools
 module load parallel
 TEMP=/scratch/$USER
-FINALVCF=vcf_slices
 INTERVAL=50
 N=${SLURM_ARRAY_TASK_ID}
 
@@ -20,15 +19,19 @@ if [ -z $N ]; then
         exit
     fi
 fi
-mkdir -p $FINALVCF
 if [ -f config.txt ]; then
 	source config.txt
 fi
-OUT=$FINALVCF/$PREFIX.$N.all.vcf
-FILTERSNP=$FINALVCF/$PREFIX.$N.SNP.filter.vcf
-FILTERINDEL=$FINALVCF/$PREFIX.$N.INDEL.filter.vcf
-SELECTSNP=$FINALVCF/$PREFIX.$N.SNP.selected.vcf
-SELECTINDEL=$FINALVCF/$PREFIX.$N.INDEL.selected.vcf
+if [ -z $SLICEVCF ]; then
+	SLICEVCF=vcf_slice
+fi
+mkdir -p $SLICEVCF
+STEM=$SLICEVCF/$PREFIX.$N
+GENOVCFOUT=$STEM.all.vcf
+FILTERSNP=$STEM.SNP.filter.vcf
+FILTERINDEL=$STEM.INDEL.filter.vcf
+SELECTSNP=$STEM.SNP.selected.vcf
+SELECTINDEL=$STEM.INDEL.selected.vcf
 
 if [ ! -f $REFGENOME ]; then
     module load samtools/1.9
@@ -57,39 +60,39 @@ fi
 
 FILES=$(ls $GVCFFOLDER/*.g.vcf.gz | sort | perl -p -e 's/(\S+)\n/-V $1 /')
 INTERVALS=$(cut -f1 $REFGENOME.fai  | sed -n "${NSTART},${NEND}p" | perl -p -e 's/(\S+)\n/--intervals $1 /g')
-mkdir -p $TEMP $FINAL
-DB=/$TEMP/${GVCFFOLDER}_slice_$N
-if [ ! -f $OUT.gz ]; then
-    if [ ! -f $OUT ]; then
+mkdir -p $TEMP
+if [ ! -f $GENOVCFOUT.gz ]; then
+    if [ ! -f $GENOVCFOUT ]; then
+	DB=/$TEMP/${GVCFFOLDER}_slice_$N
 	rm -rf $DB
 	gatk  --java-options "-Xmx$MEM -Xms$MEM" GenomicsDBImport --consolidate --merge-input-intervals --genomicsdb-workspace-path $DB $FILES $INTERVALS --reader-threads $CPU --tmp-dir $TEMP
 	#gatk  --java-options "-Xmx$MEM -Xms$MEM" GenomicsDBImport --genomicsdb-workspace-path $DB $FILES $INTERVALS  --reader-threads $CPU
-	time gatk GenotypeGVCFs --reference $REFGENOME --output $OUT -V gendb://$DB
+	time gatk GenotypeGVCFs --reference $REFGENOME --output $GENOVCFOUT -V gendb://$DB
 	rm -rf $DB
     fi
-    if [ -f $OUT ]; then
-    	bgzip $OUT
-    	tabix $OUT.gz
+    if [ -f $GENOVCFOUT ]; then
+    	bgzip $GENOVCFOUT
+    	tabix $GENOVCFOUT.gz
     fi
 fi
 
 
 TYPE=SNP
-echo "VCF = $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz"
-if [[ ! -f $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz ]]; then
+echo "VCF = $STEM.$TYPE.vcf.gz"
+if [[ ! -f $STEM.$TYPE.vcf.gz ]]; then
     gatk SelectVariants \
 	-R $REFGENOME \
-	--variant $OUT.gz \
-	-O $FINALVCF/$PREFIX.$N.$TYPE.vcf \
+	--variant $GENOVCFOUT.gz \
+	-O $STEM.$TYPE.vcf \
 	--restrict-alleles-to BIALLELIC \
 	--select-type-to-include $TYPE --create-output-variant-index false
     bgzip $FINALVCF/$PREFIX.$N.$TYPE.vcf
     tabix $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz
 fi
 
-if [[ ! -f $FILTERSNP.gz || $FINALVCF/$$PREFIX.$N.$TYPE.vcf.gz -nt $FILTERSNP.gz ]]; then
+if [[ ! -f $FILTERSNP.gz || $STEM.$TYPE.vcf.gz -nt $FILTERSNP.gz ]]; then
     gatk VariantFiltration --output $FILTERSNP \
-	--variant $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz -R $REFGENOME \
+	--variant $STEM.$TYPE.vcf.gz -R $REFGENOME \
 	--cluster-window-size 10  \
 	--filter-expression "QD < 2.0" --filter-name QualByDepth \
 	--filter-expression "MQ < 40.0" --filter-name MapQual \
@@ -115,19 +118,19 @@ if [[ ! -f $SELECTSNP.gz || $FILTERSNP.gz -nt $SELECTSNP.gz ]]; then
 fi
 
 TYPE=INDEL
-if [ ! -f $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz ]; then
+if [ ! -f $STEM.$TYPE.vcf.gz ]; then
     gatk SelectVariants \
         -R $REFGENOME \
-        --variant $OUT.gz \
-        -O $FINALVCF/$PREFIX.$N.$TYPE.vcf  --select-type-to-include MIXED --select-type-to-include MNP \
+        --variant $GENOVCFOUT.gz \
+        -O $STEM.$TYPE.vcf  --select-type-to-include MIXED --select-type-to-include MNP \
         --select-type-to-include $TYPE --create-output-variant-index false
     bgzip $FINALVCF/$PREFIX.$N.$TYPE.vcf
     tabix $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz
 fi
 
-if [[ ! -f $FILTERINDEL.gz || $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz -nt $FILTERINDEL.gz ]]; then
+if [[ ! -f $FILTERINDEL.gz || $STEM.$TYPE.vcf.gz -nt $FILTERINDEL.gz ]]; then
     gatk VariantFiltration --output $FILTERINDEL \
-	--variant $FINALVCF/$PREFIX.$N.$TYPE.vcf.gz -R $REFGENOME \
+	--variant $STEM.$TYPE.vcf.gz -R $REFGENOME \
 	--cluster-window-size 10  -filter "QD < 2.0" --filter-name QualByDepth \
 	-filter "SOR > 10.0" --filter-name StrandOddsRatio \
 	-filter "FS > 200.0" --filter-name FisherStrandBias \
