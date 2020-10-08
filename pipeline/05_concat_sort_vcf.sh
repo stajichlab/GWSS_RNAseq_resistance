@@ -13,7 +13,9 @@ else
 	echo "need a config.txt"
 fi
 
-TYPE=SNP
-OUT=$FINALVCF/$PREFIX.combined_selected.vcf.gz
 IN=$SLICEVCF/$PREFIX
-bcftools concat -Oz -o $OUT --threads $CPU $SLICEVCF/$PREFIX.*.$TYPE.selected.vcf.gz
+for TYPE in SNP INDEL
+do
+OUT=$FINALVCF/$PREFIX.$TYPE.combined_selected.vcf.gz
+bcftools concat -Oz -o $OUT --threads $CPU $IN.*.$TYPE.selected.vcf.gz
+done
